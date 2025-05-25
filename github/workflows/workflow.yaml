@@ -1,0 +1,64 @@
+name: Daily ETL
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Every day at midnight
+  workflow_dispatch:     
+
+jobs:
+  run-etl:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run ETL script
+        run: |
+          python extract.py
+          python transform.py
+          python load.py
+
+
+      - name: Upload extracted data
+        uses: actions/upload-artifact@v4
+        with:
+          name: extracted-data
+          path: extracted.json
+
+      - name: Run tests
+        run: python -m pytest test.py
+
+
+  post-etl:
+    runs-on: ubuntu-latest
+    needs: run-etl
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download extracted data
+        uses: actions/download-artifact@v4
+        with:
+          name: extracted-data
+          path: .
+
+      - name: Run post ETL logic
+        run: python post_etl.py
